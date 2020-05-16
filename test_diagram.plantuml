@@ -1,0 +1,9 @@
+@startuml Test
+
+actor A
+participant B
+
+A -> B
+B --> A
+
+@enduml

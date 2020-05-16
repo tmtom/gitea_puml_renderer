@@ -1,0 +1,81 @@
+#!/usr/bin/env python2
+'''
+    Simple external renderer for PlantUML for Gitea
+    Heavilly based on https://github.com/dougn/python-plantuml (BSD 2-Clause "Simplified" License)
+'''
+
+import base64
+import string
+from zlib import compress
+from string import maketrans
+import sys
+
+plantuml_alphabet = string.digits + string.ascii_uppercase + string.ascii_lowercase + '-_'
+base64_alphabet   = string.ascii_uppercase + string.ascii_lowercase + string.digits + '+/'
+b64_to_plantuml = maketrans(base64_alphabet.encode('utf-8'), plantuml_alphabet.encode('utf-8'))
+
+def deflate_and_encode(plantuml_text):
+    """zlib compress the plantuml text and encode it for the plantuml server.
+    """
+    zlibbed_str = compress(plantuml_text.encode('utf-8'))
+    compressed_string = zlibbed_str[2:-4]
+    return base64.b64encode(compressed_string).translate(b64_to_plantuml).decode('utf-8')
+
+
+from argparse import ArgumentParser
+
+
+
+
+def main():
+    parser = ArgumentParser(description='Gitea PlantUML renderer.')
+    
+    parser.add_argument("-u",
+                        "--plantuml-url",
+                        dest    = "plantuml_url",
+                        default = "http://www.plantuml.com/plantuml",
+                        help    = "Plantuml server URL. Default is http://www.plantuml.com/plantuml")
+
+    parser.add_argument("-f",
+                        "--file",
+                        dest    = "puml_file",
+                        help    = "Use given file as input. Otherwise will use stdin")
+
+    parser.add_argument("-s",
+                        "--svg",
+                        action  = "store_true",
+                        dest    = "use_svg",
+                        default = False,
+                        help    = "Use SVG (default is PNG)")
+
+    parser.add_argument("-i",
+                        "--image-only",
+                        action  = "store_true",
+                        dest    = "image_only",
+                        default = False,
+                        help    = "Generate only image URL (default the whole image HTML tag)")
+
+    options = parser.parse_args()
+
+    title = ""
+    if options.puml_file:
+        title = options.puml_file
+        data = open(options.puml_file).read()
+    else:
+        data = sys.stdin.read()
+
+    fmt = "/png/"
+    if options.use_svg:
+        fmt = "/svg/"
+
+    img_url = options.plantuml_url + fmt + deflate_and_encode(data)
+
+    if options.image_only:
+        print img_url
+    else:
+        print "<img src=\"{}\" alt=\"{}\">".format(img_url, title)
+
+
+#------------------------------------------------------------
+if __name__ == "__main__":
+    main()
